@@ -1,0 +1,131 @@
+# config/config.yaml
+# Favela dataset pipeline — pilot: Brasília, scale: Brazil by state
+
+project:
+  name: "favela-dataset-pipeline"
+  mode: "pilot"                 # pilot | full
+  aoi_name: "brasilia"
+  seed: 42
+
+# CRS policy:
+# - Store vectors in EPSG:4326 (canonical storage CRS)
+# - For processing/alignment, use the reference raster grid CRS (GHSL/S2/S1)
+crs:
+  storage_crs: "EPSG:4326"
+  # For metric diagnostics only (areas in meters); may be overridden per state/tile later
+  area_crs_fallback: "EPSG:3857"
+
+aoi:
+  strategy: "pilot_then_scale"  # pilot_then_scale | full
+  pilot:
+    name: "brasilia"
+    # Rough bbox used for pilot extraction/clipping (WGS84 lon/lat)
+    bbox_wgs84: [-48.30, -16.10, -47.50, -15.50]  # [min_lon, min_lat, max_lon, max_lat]
+  scale:
+    unit: "state"               # processing orchestration unit for scaling
+    # placeholder for later: path to Brazil states boundaries (IBGE) if used
+    states_boundary_path: null
+
+tiling:
+  strategy: "by_state"          # by_state (confirmed)
+  # Patch extraction size (DL training samples)
+  patch_size_px: 512
+  stride_px: 512                # change to <512 if you want overlap
+  # Optional: add overlap later if needed
+  overlap_px: 0
+
+grid:
+  # Final dataset grid (for aligning labels with Sentinel)
+  master_grid_source: "sentinel2"     # sentinel2 (confirmed target for final dataset)
+  target_resolution_m: 10
+  resampling:
+    continuous: "bilinear"            # reflectance/backscatter
+    categorical: "nearest"            # masks/classes
+
+paths:
+  raw:
+    favelas_shp_dir: "data/raw/favelas_shp"
+    ghsl_dir: "data/raw/ghsl"
+    sentinel_s2_dir: "data/raw/sentinel/s2"
+    sentinel_s1_dir: "data/raw/sentinel/s1"
+  interim:
+    polygons_clean_dir: "data/interim/polygons_clean"
+    tiles_dir: "data/interim/tiles"
+    ghsl_clips_dir: "data/interim/ghsl_clips"
+    masks_dir: "data/interim/masks"
+  processed:
+    brasilia_pilot_dir: "data/processed/brasilia_pilot"
+    brazil_full_dir: "data/processed/brazil_full"
+  reports:
+    qc_dir: "reports/qc"
+
+inputs:
+  favelas:
+    # Your cleaned outputs are produced from this raw shapefile:
+    shp_filename: "favelas.shp"
+    id_field: null                     # set if the raw shapefile has a stable government ID column
+    layer_name_clean: "favelas_clean"
+    layer_name_brasilia: "favelas_brasilia"
+  ghsl:
+    # Confirmed GHSL settings
+    product_type: "GHS_BUILT"
+    epoch: 2018
+    resolution: "10m"
+    crs: "EPSG:4326"
+    # File naming can vary; keep these as placeholders until you standardize filenames
+    tile_filename_pattern: "*.tif"
+    brasilia_tile_filename: null       # optional: set exact filename when known
+    brasilia_clip_filename: "ghsl_brasilia_clip.tif"
+
+label_refinement:
+  # Refinement logic:
+  # Y = polygon_mask AND builtup(ghsl)
+  method: "polygon_and_ghsl_threshold"
+  # Threshold policy: to be tuned with QC overlays and logged in docs
+  builtup_threshold: null              # set after initial QC (product-specific)
+  all_touched: false                   # rasterization option
+  postprocess:
+    remove_small_objects:
+      enabled: true
+      min_area_pixels: 25              # initial guess; tune after QC
+    fill_holes:
+      enabled: false
+      max_hole_area_pixels: 0
+    smoothing:
+      enabled: false
+      radius_pixels: 1
+
+sentinel2:
+  enabled: true
+  product_level: "L2A"
+  bands_10m: ["B02", "B03", "B04", "B08"]
+  bands_20m: ["B11", "B12"]
+  use_20m_bands: false
+  cloud_mask:
+    method: "scl"                      # scl | cloud_probability | none
+    max_cloud_percent: 20              # initial guess
+  compositing:
+    method: "single_best"              # single_best | median
+    date_from: null
+    date_to: null
+
+sentinel1:
+  enabled: false                       # enable after S2+labels pipeline is stable
+  polarizations: ["VV", "VH"]
+  preprocessing:
+    calibration: true
+    terrain_correction: true
+    speckle_filter: false
+  output_scale: "db"
+
+dataset:
+  include_s2: true
+  include_s1: false
+  label_values:
+    background: 0
+    favela: 1
+  split:
+    strategy: "spatial_by_state"       # spatial_by_state | spatial_tile | random
+    train: 0.7
+    val: 0.15
+    test: 0.15

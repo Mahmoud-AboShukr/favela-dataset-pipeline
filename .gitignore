@@ -1,0 +1,21 @@
+# === Data (do NOT commit) ===
+data/raw/
+data/interim/
+data/processed/
+
+# === Generated docs site ===
+site/
+
+# === Python / venv ===
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Logs / temp ===
+*.log
+*.tmp

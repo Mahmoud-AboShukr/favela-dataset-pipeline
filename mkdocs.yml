@@ -1,0 +1,41 @@
+site_name: Favela Dataset Pipeline
+site_description: Documentation for polygon refinement using GHSL and dataset creation with Sentinel-1/2
+
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Project Brief: project-brief.md
+  - Runbook: runbook.md
+  - Methods:
+      - Data sources: methods/data_sources.md
+      - Label refinement: methods/label_refinement.md
+      - Tiling & alignment: methods/tiling_and_alignment.md
+      - Sentinel-2 preprocessing: methods/preprocessing_s2.md
+      - Sentinel-1 preprocessing: methods/preprocessing_s1.md
+      - Dataset splits: methods/dataset_splits.md
+  - Decisions:
+      - Storage CRS: decisions/ADR-0001-storage-crs.md
+      - GHSL product choice: decisions/ADR-0002-ghsl-product-choice.md
+      - Threshold policy: decisions/ADR-0003-threshold-policy.md
+      - Tiling strategy: decisions/ADR-0004-tiling-strategy.md
+  - Thesis Drafts:
+      - Methods chapter: thesis/chapter_methods_draft.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - codehilite
+  - footnotes
+
+plugins:
+  - search
