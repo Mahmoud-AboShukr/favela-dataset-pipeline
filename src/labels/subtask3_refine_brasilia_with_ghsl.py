@@ -13,7 +13,7 @@ from scipy.ndimage import binary_fill_holes
 # Inputs
 POLYGONS_GPKG = Path("data/interim/polygons_clean/favelas_brasilia.gpkg")
 POLYGONS_LAYER = "favelas_brasilia"
-GHSL_CLIP_TIF = Path("data/interim/ghsl_clips/ghsl_brasilia_clip.tif")
+GHSL_CLIP_TIF = Path("data/interim/ghsl_clips/ghsl_brasilia_aoi_clip.tif")
 
 # Outputs
 OUT_DIR = Path("data/interim/masks")

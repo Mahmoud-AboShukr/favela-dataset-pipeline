@@ -32,6 +32,16 @@ Outputs:
 Outputs:
 - `data/interim/polygons_clean/favelas_brasilia.gpkg`
 
+### Pilot AOI scope (Brasília / Distrito Federal)
+- Pilot AOI is defined as the **Distrito Federal administrative boundary from OSM** (`data/interim/aoi/brasilia_boundary.gpkg`).
+- QC coverage (cleaned polygons → AOI):
+  - Total cleaned polygon parts: **12741**
+  - Intersect AOI: **72**
+  - Within AOI: **68**
+  - Cross boundary: **4**
+  - Excluded: **12669**
+- QC script: `src/qc/qc_aoi_coverage.py` (writes `reports/qc/stats/aoi_coverage_brasilia.csv`)
+
 **Subtask 2 — GHSL acquisition + verification**
 - Downloaded GHSL tile that covers Brasília
 - Verified raster properties:

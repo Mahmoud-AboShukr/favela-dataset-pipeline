@@ -4,6 +4,9 @@ This project is designed to scale to all Brazil while remaining reproducible and
 
 ---
 
+## Pilot AOI definition (Brasília)
+For the pilot, the AOI is defined as the Distrito Federal administrative boundary from OpenStreetMap (OSM). All raster clipping and mask generation are constrained to this AOI for scope control and reproducibility. AOI coverage is quantified using `src/qc/qc_aoi_coverage.py`.
+
 ## 1. High-level strategy
 We process data in two nested levels:
 
