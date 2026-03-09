@@ -6,6 +6,9 @@ import rasterio
 from rasterio.features import rasterize
 from skimage.morphology import remove_small_objects
 
+from skimage.morphology import binary_closing, disk, remove_small_objects
+from scipy.ndimage import binary_fill_holes
+
 
 # Inputs
 POLYGONS_GPKG = Path("data/interim/polygons_clean/favelas_brasilia.gpkg")
@@ -74,6 +77,12 @@ def main():
 
     # 5) Refine
     refined = (poly_mask == 1) & builtup
+    
+    # Fill gaps and holes inside settlement regions within polygons
+    refined = binary_closing(refined, footprint=disk(3))   # radius 3 pixels = 30m (tune 2–5)
+    refined = binary_fill_holes(refined)                   # fills internal holes
+    refined = remove_small_objects(refined, min_size=200)  # remove tiny leftover specks
+
 
     # 6) Cleanup small blobs
     refined_clean = remove_small_objects(refined, min_size=MIN_COMPONENT_PIXELS)
