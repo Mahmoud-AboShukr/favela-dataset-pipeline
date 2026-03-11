@@ -21,3 +21,7 @@ Thumbs.db
 *.tmp
 # Added by scripts/final_tidy.ps1
 .venv/
+
+# Generated QC figures
+reports/qc/figures/
+

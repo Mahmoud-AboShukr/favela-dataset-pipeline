@@ -67,15 +67,19 @@ inputs:
     layer_name_clean: "favelas_clean"
     layer_name_brasilia: "favelas_brasilia"
   ghsl:
-    # Confirmed GHSL settings
-    product_type: "GHS_BUILT"
-    epoch: 2018
-    resolution: "10m"
-    crs: "EPSG:4326"
-    # File naming can vary; keep these as placeholders until you standardize filenames
-    tile_filename_pattern: "*.tif"
-    brasilia_tile_filename: null       # optional: set exact filename when known
-    brasilia_clip_filename: "ghsl_brasilia_clip.tif"
+  brasilia:
+    aoi_gpkg: "data/interim/aoi/brasilia_boundary.gpkg"
+    aoi_layer: "brasilia_boundary"
+
+    epochs:
+      "2018":
+        dir: "data/raw/ghsl/Brasilia_2018"
+        resolution_m: 10
+        out_clip: "data/interim/ghsl_clips/ghsl_brasilia_2018_aoi_clip.tif"
+      "2025":
+        dir: "data/raw/ghsl/Brasilia_2025"
+        resolution_m: 100
+        out_clip: "data/interim/ghsl_clips/ghsl_brasilia_2025_aoi_clip.tif"
 
 label_refinement:
   # Refinement logic:
