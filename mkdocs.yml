@@ -1,41 +1,63 @@
 site_name: Favela Dataset Pipeline
-site_description: Documentation for polygon refinement using GHSL and dataset creation with Sentinel-1/2
-
+site_description: Documentation for the favela dataset pipeline and Brasília pilot experiments
+site_url: ""
 
 theme:
   name: material
-  features:
-    - navigation.tabs
-    - navigation.sections
-    - toc.integrate
-    - search.suggest
-    - search.highlight
 
 nav:
   - Home: index.md
-  - Project Brief: project-brief.md
-  - Runbook: runbook.md
+
+  - Project Overview:
+      - Project Brief: project-brief.md
+      - Runbook: runbook.md
+      - Scope and Goals: overview/scope.md
+      - Pipeline Status: overview/pipeline-status.md
+      - Repository Structure: overview/repo-structure.md
+
   - Methods:
-      - Data sources: methods/data_sources.md
-      - Label refinement: methods/label_refinement.md
-      - Tiling & alignment: methods/tiling_and_alignment.md
-      - Sentinel-2 preprocessing: methods/preprocessing_s2.md
-      - Sentinel-1 preprocessing: methods/preprocessing_s1.md
-      - Dataset splits: methods/dataset_splits.md
+      - Data Sources: methods/data_sources.md
+      - Label Refinement: methods/label_refinement.md
+      - GHSL Refinement: methods/ghsl_refinement.md
+      - Temporal Change Analysis: methods/temporal_change_analysis.md
+      - MapBiomas Refinement: methods/mapbiomas_refinement.md
+      - Multi-source Fusion: methods/multi_source_fusion.md
+      - Tiling and Alignment: methods/tiling_and_alignment.md
+      - Dataset Splits: methods/dataset_splits.md
+      - Sentinel-1 Preprocessing: methods/preprocessing_s1.md
+      - Sentinel-2 Preprocessing: methods/preprocessing_s2.md
+
+  - Experiments:
+      - Overview: experiments/index.md
+      - GHSL Settlement Mask Pilot: experiments/2026-03-ghsl-settlement-mask-pilot.md
+      - GHSL Temporal Change: experiments/2026-03-ghsl-temporal-change.md
+      - MapBiomas Pilot: experiments/2026-03-mapbiomas-pilot.md
+
   - Decisions:
-      - Storage CRS: decisions/ADR-0001-storage-crs.md
-      - GHSL product choice: decisions/ADR-0002-ghsl-product-choice.md
-      - Threshold policy: decisions/ADR-0003-threshold-policy.md
-      - Tiling strategy: decisions/ADR-0004-tiling-strategy.md
-  - Thesis Drafts:
-      - Methods chapter: thesis/chapter_methods_draft.md
+      - ADR-0001 Storage CRS: decisions/ADR-0001-storage-crs.md
+      - ADR-0002 GHSL Product Choice: decisions/ADR-0002-ghsl-product-choice.md
+      - ADR-0003 Threshold Policy: decisions/ADR-0003-threshold-policy.md
+      - ADR-0004 Tiling Strategy: decisions/ADR-0004-tiling-strategy.md
+      - ADR-0005 Pilot AOI Brasília: decisions/ADR-0005-pilot-aoi-brasilia.md
+      - ADR-0006 Settlement Mask Definition: decisions/ADR-0006-settlement-mask-definition.md
+      - ADR-0007 Temporal Change Policy: decisions/ADR-0007-temporal-change-policy.md
+      - ADR-0008 MapBiomas Pilot Policy: decisions/ADR-0008-mapbiomas-pilot-policy.md
+
+  - Status Notes:
+      - 2026-03-09 Brasília Pilot GHSL Settlement Mask: status/2026-03-09-brasilia-pilot-ghsl-settlement-mask.md
+      - 2026-03-13 GHSL Temporal Change: status/2026-03-13-ghsl-temporal-change.md
+      - 2026-03-xx MapBiomas Pilot: status/2026-03-xx-mapbiomas-pilot.md
+
+  - Thesis Draft:
+      - Methods Chapter: thesis/chapter_methods_draft.md
+      - Experiments Chapter: thesis/chapter_experiments_draft.md
+      - Discussion Chapter: thesis/chapter_discussion_draft.md
 
 markdown_extensions:
+  - admonition
   - toc:
       permalink: true
-  - admonition
-  - codehilite
-  - footnotes
-
-plugins:
-  - search
+  - tables
+  - fenced_code
+  - attr_list
+  - md_in_html

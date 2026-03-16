@@ -1,0 +1,4 @@
+zone,valid_px,urban_px,vegetation_px,water_px,uncertain_px,urban_pct,vegetation_pct,water_pct,uncertain_pct
+full,55392,40910,9809,30,4643,73.8554,17.7083,0.0542,8.3821
+core,0,0,0,0,0,0.0,0.0,0.0,0.0
+ring,0,0,0,0,0,0.0,0.0,0.0,0.0
