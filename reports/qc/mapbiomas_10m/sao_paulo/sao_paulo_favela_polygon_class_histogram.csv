@@ -1,0 +1,11 @@
+class_value,pixel_count,percent,class_label
+24,653201,88.7892,Urban Area
+0,38025,5.1687,Unknown
+21,27116,3.6859,Mosaic of Uses
+3,12677,1.7232,Forest Formation
+19,1446,0.1966,Temporary Crop
+25,1407,0.1913,Other Non Vegetated Areas
+15,1178,0.1601,Pasture
+33,489,0.0665,"River, Lake and Ocean"
+11,132,0.0179,Wetland
+32,5,0.0007,Unknown

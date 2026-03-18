@@ -1,0 +1,15 @@
+class_value,pixel_count,percent,class_label
+24,346671,69.4918,Urban Area
+3,39035,7.8247,Forest Formation
+4,35977,7.2118,Savanna Formation
+15,33684,6.7521,Pasture
+25,32212,6.457,Other Non Vegetated Areas
+21,6536,1.3102,Mosaic of Uses
+12,2807,0.5627,Grassland Formation
+11,1337,0.268,Wetland
+33,256,0.0513,"River, Lake and Ocean"
+30,126,0.0253,Mining
+19,115,0.0231,Temporary Crop
+0,78,0.0156,Unknown
+9,24,0.0048,Unknown
+36,8,0.0016,Perennial Crop

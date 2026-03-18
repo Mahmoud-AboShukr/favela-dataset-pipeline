@@ -1,0 +1,12 @@
+class_value,pixel_count,percent,class_label
+24,952844,81.1503,Urban Area
+25,111772,9.5192,Other Non Vegetated Areas
+15,30321,2.5823,Pasture
+11,27095,2.3076,Wetland
+3,27052,2.3039,Forest Formation
+33,10823,0.9218,"River, Lake and Ocean"
+0,7662,0.6525,Unknown / 0
+30,3617,0.308,Mining
+12,1043,0.0888,Grassland Formation
+6,1002,0.0853,Floodable Forest
+19,941,0.0801,Temporary Crop

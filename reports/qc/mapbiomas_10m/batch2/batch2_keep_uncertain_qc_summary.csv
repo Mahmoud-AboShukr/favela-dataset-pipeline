@@ -1,0 +1,4 @@
+city,original_polygon_count,raw_piece_count,dissolved_row_count,original_kept_pixels,refined_kept_pixels,removed_pixels,kept_ratio_percent,removed_ratio_percent,approx_original_area_m2_from_raster,approx_refined_area_m2_from_raster,approx_removed_area_m2_from_raster,original_vector_area_m2,raw_vector_area_m2,dissolved_vector_area_m2
+manaus,240,773,1,1174172,1117980,56192,95.2143,4.7857,117417200.0,111798000.0,5619200.0,117112066.94,111503713.59,111503713.59
+belo_horizonte,257,255,1,231500,227610,3890,98.3197,1.6803,23150000.0,22761000.0,389000.0,22085019.17,21583030.3,21583030.3
+salvador,273,370,1,660808,624291,36517,94.4739,5.5261,66080800.0,62429100.0,3651700.0,66273595.43,62613518.4,62613518.4

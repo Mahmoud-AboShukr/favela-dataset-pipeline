@@ -1,0 +1,11 @@
+metric,value
+original_pixels,498866.0
+refined_pixels,346803.0
+removed_pixels,152063.0
+unchanged_kept_pixels,346803.0
+kept_ratio_percent,69.5183
+removed_ratio_percent,30.4817
+original_area_m2_approx,49886600.0
+refined_area_m2_approx,34680300.0
+removed_area_m2_approx,15206300.0
+refined_polygon_piece_count,153.0

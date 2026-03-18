@@ -1,0 +1,6 @@
+city,aoi_file,favela_subset_file,total_intersecting,fully_inside,boundary_crossing,crs
+rio_de_janeiro,data\interim\aoi\rio_de_janeiro\rio_de_janeiro_aoi.gpkg,data\interim\aoi\rio_de_janeiro\favelas_rio_de_janeiro.gpkg,838,835,3,EPSG:4674
+sao_paulo,data\interim\aoi\sao_paulo\sao_paulo_aoi.gpkg,data\interim\aoi\sao_paulo\favelas_sao_paulo.gpkg,1439,1402,37,EPSG:4674
+belo_horizonte,data\interim\aoi\belo_horizonte\belo_horizonte_aoi.gpkg,data\interim\aoi\belo_horizonte\favelas_belo_horizonte.gpkg,257,240,17,EPSG:4674
+salvador,data\interim\aoi\salvador\salvador_aoi.gpkg,data\interim\aoi\salvador\favelas_salvador.gpkg,273,264,9,EPSG:4674
+manaus,data\interim\aoi\manaus\manaus_aoi.gpkg,data\interim\aoi\manaus\favelas_manaus.gpkg,240,239,1,EPSG:4674
