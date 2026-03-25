@@ -25,3 +25,11 @@ Thumbs.db
 # Generated QC figures
 reports/qc/figures/
 
+data/old_experiments_data/
+data/processed/final_pipeline_scale_up/
+cache/
+*_tree.txt
+*_log.txt
+project_after_tidy.txt
+src_after_tidy.txt
+data_after_tidy.txt
