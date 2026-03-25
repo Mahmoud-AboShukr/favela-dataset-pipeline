@@ -1,195 +1,352 @@
-"""
-3_polygonize_and_qc.py
+from __future__ import annotations
 
-Purpose
--------
-Convert the refined raster mask into polygon outputs and compute QC layers/metrics.
-
-Main responsibilities
----------------------
-1. Polygonize the cleaned refined mask.
-2. Intersect / relate refined polygons to source favela polygons.
-3. Dissolve results by source favela ID or another grouping rule.
-4. Compute QC metrics.
-5. Export review layers for manual inspection.
-
-Why this stage matters
-----------------------
-The project's final usable output is polygon-based. Raster logic is only the
-internal decision mechanism. The final deliverables must support:
-- manual review,
-- correction,
-- comparison with original polygons,
-- reporting.
-"""
-
+import argparse
+import json
 from pathlib import Path
-import csv
+from typing import Dict, List
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import rasterio
+from rasterio.features import shapes
+from shapely.geometry import shape
 
 
-# =============================================================================
-# CONFIG
-# =============================================================================
-
-CITY_NAME = "manaus"
-
-BASE_DIR = Path("data/processed/final_pipeline") / CITY_NAME
-PREPARED_DIR = BASE_DIR / "prepared"
-REFINED_DIR = BASE_DIR / "refined"
-POLY_DIR = BASE_DIR / "polygonized"
-POLY_DIR.mkdir(parents=True, exist_ok=True)
-
-REFINED_MASK_PATH = REFINED_DIR / "refined_mask_clean.tif"
-FAVELA_VECTOR_PATH = Path("data/interim/polygons_clean/favelas_clean.gpkg")
+OUTPUT_ROOT = Path("data/processed/final_pipeline_scale_up")
 
 
-# =============================================================================
-# HELPER PLACEHOLDERS
-# =============================================================================
-
-def read_raster(path):
-    """
-    Read raster and profile.
-    """
-    raise NotImplementedError
+def log(msg: str) -> None:
+    print(msg, flush=True)
 
 
-def polygonize_binary_raster(mask_path):
-    """
-    Polygonize the refined binary raster.
-
-    Output:
-        raw polygon GeoDataFrame
-    """
-    raise NotImplementedError
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
 
 
-def load_favela_subset(favela_path, city_name):
-    """
-    Load the source favela polygons corresponding to the AOI/city.
-    """
-    raise NotImplementedError
+def list_chunk_dirs(output_root: Path) -> List[Path]:
+    chunks_root = output_root / "chunks"
+    if not chunks_root.exists():
+        raise FileNotFoundError(f"Chunks folder not found: {chunks_root}")
+    chunk_dirs = sorted([p for p in chunks_root.iterdir() if p.is_dir()])
+    if not chunk_dirs:
+        raise RuntimeError(f"No chunk folders found under: {chunks_root}")
+    return chunk_dirs
 
 
-def assign_source_ids(refined_gdf, source_favelas_gdf):
-    """
-    Link each refined polygon back to its source favela polygon.
-
-    This can be done by:
-    - spatial join,
-    - max-overlap assignment,
-    - centroid-in-polygon,
-    depending on the desired rule.
-    """
-    raise NotImplementedError
+def read_raster(path: Path):
+    if not path.exists():
+        raise FileNotFoundError(f"Raster not found: {path}")
+    with rasterio.open(path) as src:
+        arr = src.read(1)
+        profile = src.profile.copy()
+    return arr, profile
 
 
-def dissolve_by_source_id(refined_gdf):
-    """
-    Dissolve refined polygons by source favela ID.
-
-    This gives the main final polygon layer for manual review.
-    """
-    raise NotImplementedError
+def save_vector(gdf: gpd.GeoDataFrame, path: Path) -> None:
+    ensure_dir(path.parent)
+    if path.exists():
+        path.unlink()
+    gdf.to_file(path, driver="GPKG")
 
 
-def build_review_flags(refined_gdf, dissolved_gdf, source_gdf):
-    """
-    Create a review layer highlighting suspicious cases.
+def polygonize_binary_mask(mask: np.ndarray, transform, crs) -> gpd.GeoDataFrame:
+    mask = mask.astype(np.uint8)
+    geoms = []
+    values = []
 
-    Example flags:
-    - very small refined polygon
-    - large area loss
-    - fragmented output
-    - no refined result for a source favela
-    """
-    raise NotImplementedError
+    for geom, value in shapes(mask, mask=(mask == 1), transform=transform):
+        if int(value) != 1:
+            continue
+        geoms.append(shape(geom))
+        values.append(int(value))
 
+    if not geoms:
+        return gpd.GeoDataFrame({"value": []}, geometry=[], crs=crs)
 
-def compute_qc_metrics(source_gdf, raw_gdf, dissolved_gdf):
-    """
-    Compute QC metrics such as:
-    - number of source polygons
-    - number of raw refined polygons
-    - number of dissolved refined polygons
-    - total source area
-    - total refined area
-    - mean area change
-    """
-    raise NotImplementedError
+    return gpd.GeoDataFrame({"value": values}, geometry=geoms, crs=crs)
 
 
-def save_vector(gdf, output_path):
-    """
-    Save vector layer as GPKG.
-    """
-    raise NotImplementedError
+def load_local_favelas(prepared_dir: Path) -> gpd.GeoDataFrame:
+    path = prepared_dir / "favelas.gpkg"
+    if not path.exists():
+        raise FileNotFoundError(f"Missing local favela file: {path}")
+    return gpd.read_file(path)
 
 
-def save_qc_csv(metrics_dict, output_path):
-    """
-    Save QC metrics to CSV.
-    """
-    with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["metric", "value"])
-        for k, v in metrics_dict.items():
-            writer.writerow([k, v])
+def load_chunk_geom(prepared_dir: Path) -> gpd.GeoDataFrame:
+    path = prepared_dir / "chunk_geom.gpkg"
+    if not path.exists():
+        raise FileNotFoundError(f"Missing chunk geometry file: {path}")
+    gdf = gpd.read_file(path)
+    if gdf.empty:
+        raise ValueError(f"Empty chunk geometry file: {path}")
+    return gdf
 
 
-# =============================================================================
-# MAIN PIPELINE LOGIC
-# =============================================================================
+def ensure_same_crs(target: gpd.GeoDataFrame, reference: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    if target.empty:
+        return target
+    if target.crs is None:
+        raise ValueError("Target GeoDataFrame has no CRS.")
+    if reference.crs is None:
+        raise ValueError("Reference GeoDataFrame has no CRS.")
+    if str(target.crs) != str(reference.crs):
+        return target.to_crs(reference.crs)
+    return target
+
+
+def add_area_m2(gdf: gpd.GeoDataFrame, col_name: str) -> gpd.GeoDataFrame:
+    gdf = gdf.copy()
+    if gdf.empty:
+        gdf[col_name] = pd.Series(dtype="float64")
+        return gdf
+    gdf_m = gdf.to_crs("EPSG:3857")
+    gdf[col_name] = gdf_m.geometry.area.astype(float)
+    return gdf
+
+
+def assign_source_ids_by_largest_overlap(
+    refined_gdf: gpd.GeoDataFrame,
+    source_favelas_gdf: gpd.GeoDataFrame,
+) -> gpd.GeoDataFrame:
+    if refined_gdf.empty:
+        refined_gdf = refined_gdf.copy()
+        refined_gdf["source_id"] = pd.Series(dtype="object")
+        return refined_gdf
+
+    if source_favelas_gdf.empty:
+        refined_gdf = refined_gdf.copy()
+        refined_gdf["source_id"] = pd.Series(dtype="object")
+        return refined_gdf
+
+    refined = ensure_same_crs(refined_gdf, source_favelas_gdf).copy()
+    sources = source_favelas_gdf.copy()
+
+    if "source_id" not in sources.columns:
+        sources["source_id"] = np.arange(1, len(sources) + 1)
+
+    refined["raw_id"] = np.arange(1, len(refined) + 1)
+
+    candidates = gpd.overlay(
+        refined[["raw_id", "geometry"]],
+        sources[["source_id", "geometry"]],
+        how="intersection",
+    )
+
+    if candidates.empty:
+        refined["source_id"] = pd.Series(dtype="object")
+        return refined.drop(columns=["raw_id"])
+
+    candidates = add_area_m2(candidates, "overlap_area_m2")
+
+    best = (
+        candidates.sort_values(["raw_id", "overlap_area_m2"], ascending=[True, False])
+        .drop_duplicates(subset=["raw_id"])
+        [["raw_id", "source_id"]]
+    )
+
+    refined = refined.merge(best, on="raw_id", how="left")
+    refined = refined.drop(columns=["raw_id"])
+    return refined
+
+
+def dissolve_by_source_id(refined_raw_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    if refined_raw_gdf.empty:
+        out = gpd.GeoDataFrame({"source_id": []}, geometry=[], crs=refined_raw_gdf.crs)
+        return out
+
+    gdf = refined_raw_gdf.copy()
+
+    assigned = gdf[gdf["source_id"].notna()].copy()
+    unassigned = gdf[gdf["source_id"].isna()].copy()
+
+    parts = []
+
+    if not assigned.empty:
+        dissolved_assigned = assigned.dissolve(by="source_id", as_index=False)
+        parts.append(dissolved_assigned[["source_id", "geometry"]].copy())
+
+    if not unassigned.empty:
+        unassigned = unassigned.reset_index(drop=True)
+        unassigned["source_id"] = [f"unassigned_{i+1}" for i in range(len(unassigned))]
+        parts.append(unassigned[["source_id", "geometry"]].copy())
+
+    if not parts:
+        return gpd.GeoDataFrame({"source_id": []}, geometry=[], crs=gdf.crs)
+
+    dissolved = pd.concat(parts, ignore_index=True)
+    return gpd.GeoDataFrame(dissolved, geometry="geometry", crs=gdf.crs)
+
+
+def clip_to_chunk(gdf: gpd.GeoDataFrame, chunk_geom: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    if gdf.empty:
+        return gdf
+    gdf = ensure_same_crs(gdf, chunk_geom)
+    return gpd.overlay(gdf, chunk_geom[["geometry"]], how="intersection")
+
+
+def area_in_m2(gdf: gpd.GeoDataFrame) -> float:
+    if gdf.empty:
+        return 0.0
+    gdf_m = gdf.to_crs("EPSG:3857")
+    return float(gdf_m.geometry.area.sum())
+
+
+def count_source_polygons_with_match(dissolved_gdf: gpd.GeoDataFrame) -> int:
+    if dissolved_gdf.empty or "source_id" not in dissolved_gdf.columns:
+        return 0
+    src_ids = dissolved_gdf["source_id"].dropna().astype(str)
+    src_ids = src_ids[~src_ids.str.startswith("unassigned_")]
+    return int(src_ids.nunique())
+
+
+def compute_qc_metrics(
+    local_favelas_gdf: gpd.GeoDataFrame,
+    refined_raw_gdf: gpd.GeoDataFrame,
+    refined_dissolved_gdf: gpd.GeoDataFrame,
+    chunk_id: str,
+) -> Dict[str, float]:
+    metrics = {
+        "chunk_id": chunk_id,
+        "source_polygon_count": int(len(local_favelas_gdf)),
+        "refined_raw_polygon_count": int(len(refined_raw_gdf)),
+        "refined_dissolved_polygon_count": int(len(refined_dissolved_gdf)),
+        "matched_source_polygon_count": int(count_source_polygons_with_match(refined_dissolved_gdf)),
+        "source_area_m2": area_in_m2(local_favelas_gdf),
+        "refined_raw_area_m2": area_in_m2(refined_raw_gdf),
+        "refined_dissolved_area_m2": area_in_m2(refined_dissolved_gdf),
+    }
+
+    if metrics["source_area_m2"] > 0:
+        metrics["refined_vs_source_area_ratio"] = (
+            metrics["refined_dissolved_area_m2"] / metrics["source_area_m2"]
+        )
+    else:
+        metrics["refined_vs_source_area_ratio"] = 0.0
+
+    return metrics
+
+
+def save_qc_metrics_csv(metrics: Dict[str, float], path: Path) -> None:
+    ensure_dir(path.parent)
+    df = pd.DataFrame([{"metric": k, "value": v} for k, v in metrics.items()])
+    df.to_csv(path, index=False)
+
+
+def process_chunk(chunk_dir: Path, overwrite: bool = False) -> None:
+    prepared_dir = chunk_dir / "prepared"
+    refined_dir = chunk_dir / "refined"
+    polygonized_dir = chunk_dir / "polygonized"
+
+    if not prepared_dir.exists():
+        log(f"[SKIP] {chunk_dir.name}: missing prepared folder.")
+        return
+    if not refined_dir.exists():
+        log(f"[SKIP] {chunk_dir.name}: missing refined folder.")
+        return
+
+    refined_mask_path = refined_dir / "refined_mask_clean.tif"
+    if not refined_mask_path.exists():
+        log(f"[SKIP] {chunk_dir.name}: missing refined_mask_clean.tif.")
+        return
+
+    ensure_dir(polygonized_dir)
+
+    raw_out_path = polygonized_dir / "refined_raw.gpkg"
+    dissolved_out_path = polygonized_dir / "refined_dissolved.gpkg"
+    qc_json_path = polygonized_dir / "qc_metrics.json"
+    qc_csv_path = polygonized_dir / "qc_metrics.csv"
+
+    if raw_out_path.exists() and dissolved_out_path.exists() and qc_json_path.exists() and not overwrite:
+        log(f"[SKIP] {chunk_dir.name}: polygonized outputs already exist.")
+        return
+
+    log("=" * 80)
+    log(f"[CHUNK] {chunk_dir.name}")
+    log("=" * 80)
+
+    refined_mask, profile = read_raster(refined_mask_path)
+    local_favelas = load_local_favelas(prepared_dir)
+    chunk_geom = load_chunk_geom(prepared_dir)
+
+    log(f"[STEP] {chunk_dir.name}: polygonizing refined mask...")
+    refined_raw = polygonize_binary_mask(refined_mask, profile["transform"], profile["crs"])
+
+    if refined_raw.empty:
+        refined_raw = gpd.GeoDataFrame(
+            {"value": [], "source_id": [], "raw_area_m2": []},
+            geometry=[],
+            crs=profile["crs"],
+        )
+        refined_dissolved = gpd.GeoDataFrame(
+            {"source_id": []},
+            geometry=[],
+            crs=profile["crs"],
+        )
+    else:
+        refined_raw = add_area_m2(refined_raw, "raw_area_m2")
+
+        log(f"[STEP] {chunk_dir.name}: assigning source ids...")
+        refined_raw = assign_source_ids_by_largest_overlap(refined_raw, local_favelas)
+
+        log(f"[STEP] {chunk_dir.name}: dissolving by source id...")
+        refined_dissolved = dissolve_by_source_id(refined_raw)
+
+    log(f"[STEP] {chunk_dir.name}: clipping polygon outputs to chunk geometry...")
+    refined_raw = clip_to_chunk(refined_raw, chunk_geom)
+    refined_dissolved = clip_to_chunk(refined_dissolved, chunk_geom)
+
+    log(f"[STEP] {chunk_dir.name}: computing QC metrics...")
+    qc_metrics = compute_qc_metrics(
+        local_favelas_gdf=local_favelas,
+        refined_raw_gdf=refined_raw,
+        refined_dissolved_gdf=refined_dissolved,
+        chunk_id=chunk_dir.name,
+    )
+
+    log(f"[STEP] {chunk_dir.name}: saving outputs...")
+    save_vector(refined_raw, raw_out_path)
+    save_vector(refined_dissolved, dissolved_out_path)
+
+    with open(qc_json_path, "w", encoding="utf-8") as f:
+        json.dump(qc_metrics, f, indent=2)
+
+    save_qc_metrics_csv(qc_metrics, qc_csv_path)
+
+    log(f"[DONE] {chunk_dir.name}: polygonized successfully.")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Polygonize refined chunk rasters and compute simple QC metrics."
+    )
+    parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
+    parser.add_argument("--chunk-id", type=str, default=None)
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--overwrite", action="store_true")
+    return parser.parse_args()
+
 
 def main():
-    print("=" * 80)
-    print("STAGE 3 — POLYGONIZE AND QC")
-    print("=" * 80)
+    args = parse_args()
 
-    # 1. Polygonize refined raster
-    print("\n[1] Polygonizing refined raster...")
-    refined_raw_gdf = polygonize_binary_raster(REFINED_MASK_PATH)
+    chunk_dirs = list_chunk_dirs(args.output_root)
 
-    # 2. Load source favela polygons
-    print("\n[2] Loading source favela polygons...")
-    source_favelas_gdf = load_favela_subset(FAVELA_VECTOR_PATH, CITY_NAME)
+    if args.chunk_id is not None:
+        chunk_dirs = [p for p in chunk_dirs if p.name == args.chunk_id]
+        if not chunk_dirs:
+            raise ValueError(f"Chunk not found: {args.chunk_id}")
 
-    # 3. Link refined polygons to source IDs
-    print("\n[3] Assigning source favela IDs...")
-    refined_raw_gdf = assign_source_ids(refined_raw_gdf, source_favelas_gdf)
+    if args.limit is not None:
+        chunk_dirs = chunk_dirs[:args.limit]
 
-    # 4. Dissolve by source favela ID
-    print("\n[4] Dissolving refined polygons by source ID...")
-    refined_dissolved_gdf = dissolve_by_source_id(refined_raw_gdf)
+    log(f"[RUN] Chunks to process: {len(chunk_dirs)}")
 
-    # 5. Build review flags
-    print("\n[5] Building review layer...")
-    review_gdf = build_review_flags(
-        refined_raw_gdf,
-        refined_dissolved_gdf,
-        source_favelas_gdf
-    )
+    for chunk_dir in chunk_dirs:
+        process_chunk(chunk_dir=chunk_dir, overwrite=args.overwrite)
 
-    # 6. Compute QC metrics
-    print("\n[6] Computing QC metrics...")
-    qc_metrics = compute_qc_metrics(
-        source_favelas_gdf,
-        refined_raw_gdf,
-        refined_dissolved_gdf
-    )
-
-    # 7. Save outputs
-    print("\n[7] Saving outputs...")
-    save_vector(refined_raw_gdf, POLY_DIR / "refined_raw.gpkg")
-    save_vector(refined_dissolved_gdf, POLY_DIR / "refined_dissolved.gpkg")
-    save_vector(review_gdf, POLY_DIR / "review_flags.gpkg")
-    save_qc_csv(qc_metrics, POLY_DIR / "qc_metrics.csv")
-
-    print("\nQC summary:")
-    for k, v in qc_metrics.items():
-        print(f"  {k}: {v}")
-
-    print("\nDone: stage 3 produced polygon outputs and QC artifacts.")
+    log("[DONE] Stage 3 completed.")
 
 
 if __name__ == "__main__":
