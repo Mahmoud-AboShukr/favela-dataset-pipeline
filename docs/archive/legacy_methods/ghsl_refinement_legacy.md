@@ -346,8 +346,3 @@ Experiment-specific outputs and conclusions should be documented in:
 
 See also:
 
-- [Label Refinement](label_refinement.md)
-- [Data Sources](data_sources.md)
-- [Temporal Change Analysis](temporal_change_analysis.md)
-- [MapBiomas Refinement](mapbiomas_refinement.md)
-- [Multi-source Fusion](multi_source_fusion.md)

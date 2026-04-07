@@ -1,5 +1,5 @@
 site_name: Favela Dataset Pipeline
-site_description: Documentation for the favela dataset pipeline and Brasília pilot experiments
+site_description: Documentation for the Brazil-scale favela refinement pipeline and archived pilot experiments
 site_url: ""
 
 theme:
@@ -8,30 +8,47 @@ theme:
 nav:
   - Home: index.md
 
-  - Project Overview:
+  - Project:
       - Project Brief: project-brief.md
-      - Runbook: runbook.md
       - Scope and Goals: overview/scope.md
-      - Pipeline Status: overview/pipeline-status.md
       - Repository Structure: overview/repo-structure.md
+      - Pipeline Status: overview/pipeline-status.md
+
+  - Runbook:
+      - Run Brazil Pipeline: runbook/run_brazil_pipeline.md
+      - Validate Outputs: runbook/validate_outputs.md
 
   - Methods:
+      - Current Pipeline: methods/current_pipeline.md
       - Data Sources: methods/data_sources.md
       - Label Refinement: methods/label_refinement.md
-      - GHSL Refinement: methods/ghsl_refinement.md
-      - Temporal Change Analysis: methods/temporal_change_analysis.md
-      - MapBiomas Refinement: methods/mapbiomas_refinement.md
+      - Refinement Logic: methods/refinement_logic.md
       - Multi-source Fusion: methods/multi_source_fusion.md
+      - Chunking and Alignment: methods/chunking_and_alignment.md
       - Tiling and Alignment: methods/tiling_and_alignment.md
+      - Polygonization and QC: methods/polygonization_and_qc.md
       - Dataset Splits: methods/dataset_splits.md
       - Sentinel-1 Preprocessing: methods/preprocessing_s1.md
       - Sentinel-2 Preprocessing: methods/preprocessing_s2.md
 
-  - Experiments:
-      - Overview: experiments/index.md
+  - Archive:
+      - Archive Overview: experiments/index.md
+      - Brasília GHSL Pilot: archive/brasilia_ghsl_pilot.md
+      - Manaus Pilot: archive/manaus_pilot.md
+      - MapBiomas-only Experiments: archive/mapbiomas_only_experiments.md
+      - Multi-city MapBiomas 10m: archive/multicity_mapbiomas_10m.md
       - GHSL Settlement Mask Pilot: experiments/2026-03-ghsl-settlement-mask-pilot.md
       - GHSL Temporal Change: experiments/2026-03-ghsl-temporal-change.md
       - MapBiomas Pilot: experiments/2026-03-mapbiomas-pilot.md
+      - Brasília Pilot GHSL Settlement Mask Status: archive/legacy_status/2026-03-09-brasilia-pilot-ghsl-settlement-mask.md
+      - GHSL Temporal Change Status: archive/legacy_status/2026-03-13-ghsl-temporal-change.md
+      - MapBiomas Task Selection Status: archive/legacy_status/2026-03-16_mapbiomas_task1_selection.md
+      - Rio and São Paulo Batch Status: archive/legacy_status/2026-03-18-mapbiomas-10m-batch1-rio-sao-paulo.md
+      - Multicity Scale-Up Plan: archive/legacy_status/Multicity_Scale-Up_Plan.md
+      - Legacy Runbook: archive/legacy_methods/runbook_legacy.md
+      - Legacy GHSL Refinement: archive/legacy_methods/ghsl_refinement_legacy.md
+      - Legacy MapBiomas Refinement: archive/legacy_methods/mapbiomas_refinement_legacy.md
+      - Legacy Temporal Change Analysis: archive/legacy_methods/temporal_change_analysis_legacy.md
 
   - Decisions:
       - ADR-0001 Storage CRS: decisions/ADR-0001-storage-crs.md
@@ -42,11 +59,10 @@ nav:
       - ADR-0006 Settlement Mask Definition: decisions/ADR-0006-settlement-mask-definition.md
       - ADR-0007 Temporal Change Policy: decisions/ADR-0007-temporal-change-policy.md
       - ADR-0008 MapBiomas Pilot Policy: decisions/ADR-0008-mapbiomas-pilot-policy.md
+      - ADR-0009 Multicity Baseline: decisions/ADR-0009-2026-03-17-multicity-baseline.md
 
-  - Status Notes:
-      - 2026-03-09 Brasília Pilot GHSL Settlement Mask: status/2026-03-09-brasilia-pilot-ghsl-settlement-mask.md
-      - 2026-03-13 GHSL Temporal Change: status/2026-03-13-ghsl-temporal-change.md
-      - 2026-03-xx MapBiomas Pilot: status/2026-03-xx-mapbiomas-pilot.md
+  - Next Phase:
+      - Satellite Processing Plan: next_phase/satellite_processing_plan.md
 
   - Thesis Draft:
       - Methods Chapter: thesis/chapter_methods_draft.md

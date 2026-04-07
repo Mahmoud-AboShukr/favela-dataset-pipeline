@@ -346,6 +346,6 @@ See also:
 
 - [Label Refinement](label_refinement.md)
 - [Data Sources](data_sources.md)
-- [GHSL Refinement](ghsl_refinement.md)
-- [Temporal Change Analysis](temporal_change_analysis.md)
-- [MapBiomas Refinement](mapbiomas_refinement.md)
+- [GHSL Refinement](../archive/legacy_methods/ghsl_refinement_legacy.md)
+- [Temporal Change Analysis](../archive/legacy_methods/temporal_change_analysis_legacy.md)
+- [MapBiomas Refinement](../archive/legacy_methods/mapbiomas_refinement_legacy.md)

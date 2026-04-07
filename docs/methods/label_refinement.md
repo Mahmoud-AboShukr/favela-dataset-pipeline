@@ -264,6 +264,6 @@ Exact filenames and experiment-specific conclusions should be documented in:
 See also:
 
 - [Label Refinement](label_refinement.md)
-- [GHSL Refinement](ghsl_refinement.md)
-- [MapBiomas Refinement](mapbiomas_refinement.md)
+- [GHSL Refinement](../archive/legacy_methods/ghsl_refinement_legacy.md)
+- [MapBiomas Refinement](../archive/legacy_methods/mapbiomas_refinement_legacy.md)
 - [Multi-source Fusion](multi_source_fusion.md)

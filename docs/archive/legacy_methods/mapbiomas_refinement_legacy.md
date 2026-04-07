@@ -322,7 +322,3 @@ Experiment-specific outputs and conclusions should be documented in:
 
 See also:
 
-- [Label Refinement](label_refinement.md)
-- [GHSL Refinement](ghsl_refinement.md)
-- [Temporal Change Analysis](temporal_change_analysis.md)
-- [Multi-source Fusion](multi_source_fusion.md)

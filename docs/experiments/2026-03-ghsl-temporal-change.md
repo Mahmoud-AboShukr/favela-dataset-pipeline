@@ -223,7 +223,7 @@ For now, the temporal-change experiment mainly strengthens the understanding of 
 
 See also:
 
-- [Temporal Change Analysis](../methods/temporal_change_analysis.md)
+- [Temporal Change Analysis](../archive/legacy_methods/temporal_change_analysis_legacy.md)
 - [Label Refinement](../methods/label_refinement.md)
-- [GHSL Refinement](../methods/ghsl_refinement.md)
+- [GHSL Refinement](../archive/legacy_methods/ghsl_refinement_legacy.md)
 - [Multi-source Fusion](../methods/multi_source_fusion.md)

@@ -1,72 +1,129 @@
 # Favela Dataset Pipeline
 
-This site documents the pipeline for building a deep-learning-ready dataset for **favela detection and segmentation in Brazil**.
+## Overview
 
-The project starts from official favela polygons and develops methods to:
-- refine noisy boundaries,
-- remove obvious non-settlement areas such as vegetation,
-- align labels with **Sentinel-1** and **Sentinel-2** imagery,
-- and prepare data for downstream machine learning experiments.
+This project develops a Brazil-scale pipeline for refining official favela polygons into cleaner raster and polygon labels for later dataset construction and machine-learning use.
 
-The current work is centered on a **Brasília pilot**, used to test refinement strategies before scaling to larger regions of Brazil.
+The project began with earlier pilot experiments, especially a Brasília GHSL-based pilot and later Manaus and MapBiomas experiments. It has now evolved into a working national chunked pipeline that processes the favela layer across Brazil using multiple raster sources and produces both refined raster masks and refined polygon outputs.
 
-## Current focus
+The long-term objective is to build a robust, deep-learning-ready favela dataset that can later be aligned with satellite imagery such as Sentinel-1 and Sentinel-2.
 
-The main topics currently covered in this documentation are:
+---
 
-- official polygon cleaning and refinement,
-- **GHSL-based** built-up and settlement analysis,
-- **GHSL temporal change** experiments,
-- **MapBiomas-based** vegetation-removal and built-up support experiments,
-- preparation of refined masks for later Sentinel-aligned dataset generation.
+## Current active workflow
 
-## Navigate the documentation
+The current active workflow is the Brazil-scale chunked pipeline located under:
 
-### Project overview
-General context, scope, and repository organization.
+`src/final_pipeline_scale_up/`
 
-- [Project Brief](project-brief.md)
-- [Runbook](runbook.md)
-- [Scope and Goals](overview/scope.md)
-- [Pipeline Status](overview/pipeline-status.md)
+This is the main operational workflow of the project.
+
+It uses:
+
+- favela polygons as the source labels,
+- MapBiomas 10 m as the semantic base and master grid,
+- GHSL 2022 as built-up support,
+- WorldCover 2021 as vegetation support.
+
+The final outputs remain polygon-based, but the decision process is raster-based.
+
+---
+
+## Current pipeline stages
+
+The active pipeline consists of four main stages:
+
+1. **Prepare inputs**  
+   Build chunk-level aligned raster and vector inputs.
+
+2. **Build refined mask**  
+   Apply the active multi-source refinement rule.
+
+3. **Polygonize and QC**  
+   Convert refined raster masks to polygon outputs and compute basic quality-control summaries.
+
+4. **Merge Brazil polygons**  
+   Merge chunk-level polygon outputs into Brazil-wide layers.
+
+---
+
+## Current project status
+
+The national-scale label-refinement pipeline has already been executed successfully across:
+
+- **407 active chunks**
+
+The project now has:
+
+- chunk-level prepared inputs,
+- chunk-level refined raster masks,
+- chunk-level raw polygons,
+- chunk-level dissolved polygons,
+- chunk-level QC files,
+- Brazil-wide merged polygon outputs.
+
+The pipeline is therefore no longer only experimental; it is now operational at Brazil scale.
+
+---
+
+## Why this project matters
+
+Official favela polygons are useful but can contain noise, coarse boundaries, or label spillover. Refining these polygons helps reduce manual correction effort and improves the quality of labels that will later be used for dataset construction and model development.
+
+The project is designed to preserve:
+
+- methodological traceability,
+- scalable execution,
+- and final polygon-based outputs that remain practical for review and correction.
+
+---
+
+## Documentation structure
+
+This documentation is organized around four main perspectives:
+
+### Project
+High-level project context, status, and repository organization.
 
 ### Methods
-Reusable methodological components of the pipeline.
+The current active Brazil-scale pipeline and its methodological logic.
 
-- [Data Sources](methods/data_sources.md)
-- [Label Refinement](methods/label_refinement.md)
-- [Temporal Change Analysis](methods/temporal_change_analysis.md)
-- [MapBiomas Refinement](methods/mapbiomas_refinement.md)
+### Runbook
+Practical instructions for running and validating the pipeline.
 
-### Experiments
-Pilot studies and comparative analyses carried out on Brasília.
+### Archive
+Older pilot and experiment phases that informed the current design but are no longer the main workflow.
 
-- [Experiments Overview](experiments/index.md)
+---
 
-### Decisions
-Architecture and methodology decisions recorded as ADRs.
+## Current transition point
 
-- [Decisions](decisions/ADR-0001-storage-crs.md)
+The core refinement pipeline is now in place. The project is at the transition between:
 
-### Thesis draft
-Working research-writing material derived from the implemented methods and experiments.
+- national label refinement,
+- and the next phase of satellite-image processing and dataset construction.
 
-- [Methods Chapter Draft](thesis/chapter_methods_draft.md)
+The immediate next tasks are:
 
-## Active experiments
+- validate representative outputs,
+- aggregate QC nationally,
+- review chunk-boundary consistency,
+- and prepare for satellite-image alignment.
 
-The current active experiments are:
+---
 
-- **GHSL settlement-mask refinement pilot**
-- **GHSL temporal change analysis**
-- **MapBiomas-only pilot for vegetation removal and settlement-support inference**
+## Recommended starting pages
 
-## Project goal
+If you are new to the project, the best reading order is:
 
-The long-term objective is to produce a scalable and consistent dataset for informal-settlement mapping in Brazil by:
+1. **Project Brief**
+2. **Current Pipeline**
+3. **Run Brazil Pipeline**
+4. **Brazil Pipeline Completed (March 2026)**
+5. **Archive pages** for historical context if needed
 
-1. ingesting official favela polygons,
-2. refining noisy or overextended boundaries,
-3. generating reliable binary masks,
-4. aligning the labels with Sentinel-1 and Sentinel-2 imagery,
-5. preparing patch-based data for machine learning workflows.
+---
+
+## Short summary
+
+This repository now contains a working Brazil-scale favela-refinement pipeline that combines semantic and built-up support layers to produce refined raster and polygon labels, with the next project phase focused on validation and satellite-image integration.

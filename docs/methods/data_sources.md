@@ -2,337 +2,223 @@
 
 ## Purpose
 
-This page documents the main data sources used in the favela dataset pipeline.
+This page documents the main data sources used by the current Brazil-scale favela refinement pipeline.
 
-The project combines:
+The project combines vector labels and multiple raster products in order to refine the national favela layer into cleaner raster and polygon outputs.
 
-- official vector labels,
-- auxiliary raster products used for refinement,
-- later Sentinel imagery used for dataset construction,
-- and internally derived intermediate products used for analysis and quality control.
-
-The current work is centered on a **Brasília pilot**, but the longer-term objective is to build a scalable pipeline for all Brazil.
+This page focuses on the **current active pipeline**, not the older archived pilot-only workflows.
 
 ---
 
-## Data-source roles in the pipeline
+## Overview
 
-The data sources in the project do not all serve the same role.
+The active refinement workflow uses the following core inputs:
 
-At a high level, they can be grouped into four categories:
+1. favela polygons,
+2. MapBiomas 10 m,
+3. GHSL EMC-BUILT 2022 10 m,
+4. ESA WorldCover 2021 v200.
 
-1. **Primary label sources**  
-   Official vector data that define the initial favela polygons.
+A fifth source is planned for later post-processing:
 
-2. **Auxiliary refinement sources**  
-   Raster products used to identify built-up, vegetated, anthropic, or changing areas that may help refine noisy polygon boundaries.
-
-3. **Target imagery sources**  
-   Sentinel imagery used later for alignment, patch extraction, and deep-learning-ready dataset generation.
-
-4. **Derived internal products**  
-   Intermediate rasters, masks, and QC layers generated inside the project from the above inputs.
+5. OSM industrial / factory polygons.
 
 ---
 
-## 1. Primary label source
+## 1. Favela polygons
 
-### Official Brazilian favela polygons
+### Role
+The favela polygons are the main target labels to be refined.
 
-The project begins with official favela polygons provided as vector data.
+They define:
 
-These polygons are the primary label source and remain the backbone of the annotation workflow. They are cleaned, standardized, and subsetted before refinement.
+- the starting polygon footprint,
+- the spatial extent of the label-refinement problem,
+- and the vector basis for the final output.
 
-Typical issues addressed during preprocessing include:
+### Usage in the pipeline
+The polygons are used to:
 
-- invalid geometries,
-- multipart features,
-- duplicate or missing identifiers,
-- subset extraction for the Brasília pilot.
+- define the chunked processing extent,
+- generate per-chunk local favela subsets,
+- rasterize a favela mask on the working grid,
+- and later assign refined polygons back to source polygons.
 
-### Role in the pipeline
-
-The official polygons are used to:
-
-- define the initial candidate settlement extent,
-- generate binary raster masks,
-- provide the baseline geometry for refinement,
-- and support later alignment with satellite imagery.
-
-### Important note
-
-The project does **not** currently aim to replace these official polygons entirely. Instead, it aims to **refine them conservatively** using auxiliary evidence.
+### Output relationship
+Although the refinement logic itself is raster-based, the final project remains polygon-oriented, so these source polygons remain central throughout the workflow.
 
 ---
 
-## 2. Auxiliary refinement sources
+## 2. MapBiomas 10 m
 
-Auxiliary refinement sources are raster layers used to help determine which parts of a polygon should likely be:
+### Role
+MapBiomas is the semantic base layer of the current active pipeline.
 
-- preserved,
-- trimmed,
-- or interpreted with caution.
+It is used as:
 
-These sources are especially important because the official polygons may contain vegetation, broad margins, or mixed land-cover types.
+- the main land-cover / land-use interpretation source,
+- the master thematic layer,
+- and the master grid for raster alignment.
 
-### 2.1 GHSL
+### Why it matters
+MapBiomas provides explicit semantic classes that help distinguish:
 
-The **Global Human Settlement Layer (GHSL)** is one of the main auxiliary data families used in the project.
+- urban built-up areas,
+- uncertain non-vegetated areas,
+- vegetation,
+- water and other non-target classes.
 
-GHSL products provide built-up or settlement-related information that can be used to estimate whether an area is likely urbanized or structurally occupied.
+This makes it the main source of semantic control in the refinement logic.
 
-### Current role
+### Main class usage
+The current pipeline interprets MapBiomas classes approximately as follows:
 
-GHSL is currently used for:
+#### Main keep class
+- `24 = Urban Area`
 
-- built-up evidence,
-- settlement-mask experiments,
-- threshold-based pilot refinement,
-- and temporal comparison across multiple epochs.
+#### Uncertain class
+- `25 = Other Non Vegetated Areas`
 
-### Why GHSL is useful
+#### Vegetation classes used as removal support
+- `3 = Forest Formation`
+- `4 = Savanna Formation`
+- `5 = Mangrove`
+- `6 = Floodable Forest`
+- `11 = Wetland`
+- `12 = Grassland`
+- `49 = Wooded Sandbank Vegetation`
+- `50 = Herbaceous Sandbank Vegetation`
 
-GHSL is attractive because it provides a large-scale and standardized way to estimate built-up presence, which is relevant to settlement refinement.
+#### Hard-remove classes
+- `31 = Aquaculture`
+- `33 = Water`
 
-### Current limitations
-
-Depending on the product and epoch, GHSL may be:
-
-- sparse,
-- resolution-limited,
-- threshold-sensitive,
-- or insufficient as a standalone final refinement source.
-
-For this reason, GHSL is currently treated as an important **baseline evidence source**, not automatically the final solution.
-
----
-
-### 2.2 GHSL temporal derivatives
-
-In addition to single-epoch GHSL layers, the project also derives **temporal-change products** by comparing multiple GHSL epochs over Brasília.
-
-These internal derivatives include outputs such as:
-
-- growth,
-- loss,
-- persistence,
-- and supporting harmonized binary masks.
-
-### Role in the pipeline
-
-These temporal layers are used mainly for:
-
-- interpretation,
-- diagnosis of spatial mismatch,
-- and contextual understanding of built-up evolution.
-
-They are **not** currently treated as direct label truth.
-
-### Why they matter
-
-Temporal change can help explain why a location appears weakly supported in one epoch but more strongly built-up in another.
+### Operational role
+In the current pipeline, MapBiomas is not just a source of classes. It also defines the working raster geometry for each chunk.
 
 ---
 
-### 2.3 MapBiomas
+## 3. GHSL EMC-BUILT 2022 10 m
 
-**MapBiomas** is being tested as a new pilot refinement source for Brasília.
+### Role
+GHSL is used as built-up support.
 
-MapBiomas provides thematic land-cover information that may be used to identify:
+It helps identify whether uncertain pixels are likely to belong to built-up favela structures rather than to surrounding non-target areas.
 
-- vegetation-like areas,
-- anthropic or urban-support areas,
-- and uncertain land-cover zones.
+### Why it matters
+The project learned early that land-cover semantics alone are not enough. Some uncertain pixels need additional support before they can be kept.
 
-### Current role
+GHSL provides that support.
 
-MapBiomas is being evaluated as a possible standalone pilot source for:
+### Current interpretation
+The current pipeline uses GHSL as a built-up evidence surface and thresholds it to create a support mask.
 
-- vegetation removal,
-- anthropic or built-up support inference,
-- and conservative polygon refinement.
+In the current national run, the active threshold was:
 
-### Why MapBiomas is useful
+- `GHSL >= 20.0`
 
-It offers a practical alternative to immediately computing vegetation indices from Sentinel-2, especially when cloud contamination and optical preprocessing make a fast pilot more difficult.
+### CRS note
+A key practical detail is that GHSL uses a different CRS from the other main sources.
 
-### Key question
+This is why Stage 1 must explicitly reproject and align GHSL to the MapBiomas grid.
 
-The current pilot is designed to answer:
-
-> Can MapBiomas alone provide enough evidence to refine official favela polygons conservatively in Brasília?
-
----
-
-### 2.4 Future auxiliary sources
-
-The project may later include additional auxiliary evidence sources if no single product proves sufficient alone.
-
-Potential examples include:
-
-- **WSF (World Settlement Footprint)** for binary settlement support,
-- directly computed **NDVI** or other optical indices from Sentinel-2,
-- additional built-up or land-cover products if needed.
-
-These are currently considered future or optional extensions rather than fixed core inputs.
+### Current status
+GHSL is part of the active core rule and is one of the main reasons the final method is stronger than the older MapBiomas-only variants.
 
 ---
 
-## 3. Target imagery sources
+## 4. ESA WorldCover 2021 v200
 
-The final dataset is intended to be aligned with Sentinel imagery for downstream machine learning.
+### Role
+WorldCover is used mainly as vegetation support.
 
-### 3.1 Sentinel-2
+Its main job is to help suppress vegetation spillover in and around favela edges.
 
-**Sentinel-2** provides optical multispectral imagery.
+### Why it matters
+The project repeatedly observed that edge ambiguity is one of the central problems in label refinement. WorldCover provides an additional vegetation-oriented signal that complements MapBiomas vegetation classes.
 
-### Role in the pipeline
+### Typical classes used
+The current pipeline uses WorldCover mainly to identify vegetation-like and water-like areas such as:
 
-Sentinel-2 is intended to support:
+- tree cover,
+- shrubland,
+- grassland,
+- wetlands,
+- mangroves,
+- permanent water bodies.
 
-- later image-label alignment,
-- optical patch extraction,
-- visual interpretation,
-- and potentially vegetation-related analysis such as NDVI.
-
-### Current project status
-
-Sentinel-2 is part of the planned downstream data-generation workflow, but direct NDVI-based refinement is currently deferred in the Brasília pilot in favor of first testing MapBiomas.
-
----
-
-### 3.2 Sentinel-1
-
-**Sentinel-1** provides synthetic aperture radar (SAR) imagery.
-
-### Role in the pipeline
-
-Sentinel-1 is intended to support:
-
-- later image-label alignment,
-- SAR-based deep learning experiments,
-- and multimodal dataset construction together with Sentinel-2.
-
-### Current project status
-
-Sentinel-1 preprocessing is part of the broader pipeline, but the current refinement work still happens upstream of the final imagery-aligned dataset stage.
+### Operational role
+WorldCover is aligned to the MapBiomas grid during Stage 1 and then used in Stage 2 to remove likely non-target pixels.
 
 ---
 
-## 4. Derived internal products
+## 5. OSM industrial / factory polygons
 
-The project also creates many intermediate products derived from the above sources.
+### Role
+This source is planned for later post-processing.
 
-These are not external raw datasets, but they are important working data layers.
+Its purpose is to remove industrial or non-residential built-up areas that may still survive the raster refinement logic.
 
-Examples include:
+### Why it is needed
+Even if an area is built-up, it is not necessarily a favela. Industrial and factory zones are a good example of built-up non-target land that may need explicit masking.
 
-- cleaned polygons,
-- AOI subsets,
-- clipped GHSL rasters,
-- settlement masks,
-- threshold-sweep outputs,
-- refined raster masks,
-- refined vector polygons,
-- temporal change maps,
-- QC overlays and statistics.
-
-### Role in the pipeline
-
-These derived products make the workflow reproducible and allow each pilot step to be inspected independently.
-
-They are especially important for:
-
-- debugging,
-- visual comparison,
-- threshold experiments,
-- and documenting methodological decisions.
+### Current status
+OSM industrial/factory masking is not yet part of the active operational pipeline, but it remains part of the planned next refinement stage.
 
 ---
 
-## Source categories by function
+## Source intentionally excluded from the core rule
 
-Another useful way to think about the project’s data sources is by function.
+## WSF
 
-### Geometry source
-- official favela polygons
+### Historical role
+WSF was considered as a settlement-confirmation source during the design of the multi-source pipeline.
 
-### Built-up support
-- GHSL
-- potentially WSF or future built-up products
+### Why it is not active now
+It is currently excluded from the core rule because of temporal-consistency concerns relative to the current refinement context.
 
-### Vegetation or land-cover support
-- MapBiomas
-- potentially later NDVI from Sentinel-2
+Using an older settlement source as a mandatory support layer could suppress valid more recent built-up favela extent.
 
-### Temporal context
-- GHSL temporal derivatives
-
-### Final imagery for dataset creation
-- Sentinel-2
-- Sentinel-1
-
-This distinction is important because different sources answer different questions in the refinement workflow.
+### Current status
+WSF is not part of the active pipeline logic, but it may later be used for comparison or ablation experiments.
 
 ---
 
-## Current data-source strategy
+## Why multiple sources are needed
 
-The current strategy in the Brasília pilot is:
+No single source is sufficient on its own.
 
-1. use the official polygons as the base labels,
-2. evaluate auxiliary evidence sources one at a time where possible,
-3. keep refinement conservative and interpretable,
-4. determine whether one source is sufficient alone,
-5. move to multi-source fusion only if necessary.
+### Favela polygons alone
+They provide the target footprint but can contain geometry and boundary noise.
 
-In practical terms:
+### MapBiomas alone
+It provides strong semantics but creates a trade-off between keeping uncertain built-up edges and suppressing vegetation spillover.
 
-- GHSL remains the main built-up baseline,
-- temporal GHSL products provide contextual interpretation,
-- MapBiomas is now being tested as a standalone land-cover refinement source,
-- Sentinel-based vegetation-index workflows remain possible but are not the first pilot path.
+### GHSL alone
+It provides built-up support but is not enough to drive the full semantic decision process.
 
----
+### WorldCover alone
+It helps identify vegetation but is not sufficient as a standalone refinement source.
 
-## Selection principles
-
-When choosing a data source for refinement, the project prioritizes:
-
-- interpretability,
-- operational simplicity,
-- spatial relevance to the polygon-noise problem,
-- compatibility with the later raster grid and dataset workflow,
-- and the ability to preserve realistic settlement geometry.
-
-A source is more valuable if it helps remove obvious false-positive areas without introducing major shape distortion or large uncertainty.
+The current active method therefore depends on combining these sources rather than trusting any one source blindly.
 
 ---
 
-## Known challenges across sources
+## Current active source combination
 
-Several issues affect data-source use in this project:
+The current operational pipeline uses:
 
-- temporal mismatch between products,
-- differences in resolution,
-- class or threshold ambiguity,
-- mixed pixels near urban boundaries,
-- sparse or coarse settlement evidence,
-- disagreement between built-up and vegetation indicators.
+- favela polygons as the target vector input,
+- MapBiomas 10 m as the semantic base and master grid,
+- GHSL 2022 as built-up support,
+- WorldCover 2021 as vegetation support.
 
-These challenges are one reason why the project is being developed through pilot experiments rather than assuming that a single product is always sufficient.
+This is the active source combination used in the national-scale run.
 
 ---
 
-## Related method pages
+## Relationship to the project phases
 
-See also:
+These sources belong to the label-refinement phase of the project.
 
-- [Label Refinement](label_refinement.md)
-- [GHSL Refinement](ghsl_refinement.md)
-- [Temporal Change Analysis](temporal_change_analysis.md)
-- [MapBiomas Refinement](mapbiomas_refinement.md)
-- [Multi-source Fusion](multi_source_fusion.md)
-- [Preprocessing S1](preprocessing_s1.md)
-- [Preprocessing S2](preprocessing_s2.md)
-- [Tiling and Alignment](tiling_and_alignment.md)
+Once the labels are sufficiently validated, the next phase will connect them to satellite-image processing and dataset construction.

@@ -1,254 +1,172 @@
-# Project Brief — Favela Dataset Pipeline (Brazil)
+# Project Brief
 
-## Project goal
+## Title
 
-Build a deep-learning-ready dataset for **favela detection and segmentation in Brazil** by:
-
-1. ingesting and cleaning the official Brazilian favela polygons,
-2. refining noisy or overextended labels using auxiliary raster evidence,
-3. generating binary masks (`0 = non-favela`, `1 = favela`),
-4. aligning refined labels with **Sentinel-2** (optical) and **Sentinel-1** (SAR) imagery,
-5. preparing the data for later tiling, patch extraction, and machine learning workflows.
-
-The work starts with a **Brasília pilot** before scaling to the rest of Brazil.
+Brazil-scale Favela Polygon Refinement Pipeline
 
 ---
 
-## Project framing
+## Short description
 
-The project is now structured as a **modular label-refinement framework** rather than a single fixed refinement workflow.
-
-The official polygons remain the primary label source, and multiple auxiliary raster products are being evaluated to determine how best to:
-
-- remove obvious non-settlement areas such as vegetation,
-- preserve realistic settlement geometry,
-- avoid over-trimming true built-up areas,
-- and build a refinement strategy that can scale later to all Brazil.
-
-The current refinement evidence sources under evaluation include:
-
-- **GHSL built-up / settlement-derived layers**
-- **GHSL temporal change products**
-- **MapBiomas land-cover evidence**
-- potential later fusion with **WSF** or other built-up support layers
+This project develops a scalable geospatial pipeline to refine official favela polygons across Brazil into cleaner raster and polygon labels. The refined outputs are intended to reduce manual correction effort and serve as a stronger basis for later dataset construction and machine-learning workflows.
 
 ---
 
-## Current status
+## Main objective
 
-### Completed
+The main goal is to improve the quality of the national favela label layer by combining multiple raster sources rather than relying on a single support layer or a purely manual correction process.
 
-#### Subtask 1 — Clean polygons (Brazil-wide)
-- Input CRS: `EPSG:4674` (SIRGAS 2000)
-- Stored CRS: `EPSG:4326`
-- Loaded features: `12,348`
-- After multipolygon explode: `12,741`
-- Invalid geometries fixed: `1 → 0`
-- Unique IDs created: `source_id`, `part_index`, `favela_id` (no duplicates)
+The refined outputs should:
 
-Outputs:
-- `data/interim/polygons_clean/favelas_clean.gpkg`
-- `data/interim/polygons_clean/favelas_clean_summary.csv`
-
-#### Brasília subset extraction
-- Created a Brasília-area subset from cleaned polygons
-- Extracted subset for pilot experimentation
-
-Output:
-- `data/interim/polygons_clean/favelas_brasilia.gpkg`
-
-#### Pilot AOI definition (Brasília / Distrito Federal)
-- Pilot AOI is defined as the **Distrito Federal administrative boundary from OSM**
-- AOI file:
-  - `data/interim/aoi/brasilia_boundary.gpkg`
-
-QC coverage (cleaned polygons → AOI):
-- Total cleaned polygon parts: **12741**
-- Intersect AOI: **72**
-- Within AOI: **68**
-- Cross boundary: **4**
-- Excluded: **12669**
-
-QC script:
-- `src/qc/qc_aoi_coverage.py`
-
-QC output:
-- `reports/qc/stats/aoi_coverage_brasilia.csv`
+- preserve likely built-up favela areas,
+- suppress vegetation spillover and other non-target regions,
+- remain practical for manual review,
+- and later support downstream satellite-image dataset creation.
 
 ---
 
-## GHSL preparation work
+## Long-term objective
 
-### Subtask 2 — GHSL acquisition and verification
-- Downloaded the GHSL tile covering Brasília
-- Verified raster properties
-- Prepared a clipped raster for faster pilot experimentation
+The longer-term goal of the project is to build a deep-learning-ready dataset for favela detection and segmentation in Brazil.
 
-Output:
-- `data/raw/ghsl/brasilia.tif`
+This means the current label-refinement work is not the final destination by itself. Rather, it is the label-engineering stage that prepares the project for:
 
-### GHSL clip to Brasília bbox
-Output:
-- `data/interim/ghsl_clips/ghsl_brasilia_clip.tif`
-
-### Notes / lessons learned
-- An initial GHSL tile mismatch caused clipping failure because the downloaded raster did not overlap the Brasília bbox.
-- The workflow was updated to validate bbox–raster overlap before clipping.
-- The corrected GHSL tile is now stored and used consistently for Brasília experiments.
+- satellite-image alignment,
+- dataset extraction,
+- model training,
+- and later evaluation.
 
 ---
 
-## Experimental work in progress
+## Historical development
 
-The Brasília pilot now includes multiple experimental directions rather than a single refinement rule.
+The project began with early pilot experiments focused on Brasília and GHSL-based refinement. These pilots were useful for establishing the initial pipeline structure, but they also revealed a key limitation: a hard settlement-mask refinement strategy can wrongly remove valid label regions when the support layer contains false negatives.
 
-### 1. GHSL-based refinement experiments
-Initial refinement work explored the use of GHSL built-up evidence to trim official polygons and generate refined binary masks.
+Later phases explored:
 
-This remains an important baseline, but the project no longer assumes that GHSL alone will be the final refinement source.
+- MapBiomas-based refinement,
+- Manaus as a difficult urban–vegetation pilot,
+- multi-city MapBiomas 10 m experiments,
+- and increasingly multi-source logic.
 
-### 2. GHSL temporal change analysis
-A temporal experiment has been introduced to compare multiple GHSL epochs and generate change products such as:
-
-- growth,
-- loss,
-- persistence,
-- and supporting resampled masks.
-
-The purpose of this experiment is to assess whether temporal built-up change can help explain polygon mismatch, identify evolving urban areas, and support refinement interpretation.
-
-### 3. MapBiomas-only pilot
-Following discussion with supervisors, a new pilot experiment is being introduced to test whether **MapBiomas alone** can provide sufficient evidence for:
-
-- vegetation removal,
-- anthropic / built-up support,
-- and conservative polygon refinement in Brasília.
-
-This pilot is motivated by the practical difficulty of relying immediately on NDVI from Sentinel-2, especially under cloud contamination.
-
-The main question is:
-
-> Can MapBiomas alone provide a sufficiently robust first refinement baseline before introducing GHSL, WSF, or other auxiliary products?
+These stages eventually led to the current Brazil-scale chunked pipeline.
 
 ---
 
-## Current methodological direction
+## Current active methodology
 
-The working assumption is now:
+The current operational refinement workflow uses:
 
-- the **official favela polygon** remains the backbone of the label,
-- refinement should be **conservative**,
-- and changes should focus primarily on removing **obvious non-settlement margins**, especially vegetation.
+- favela polygons as the source label layer,
+- MapBiomas 10 m as the semantic base and master grid,
+- GHSL EMC-BUILT 2022 10 m as built-up support,
+- ESA WorldCover 2021 v200 as vegetation support.
 
-Rather than fully redrawing polygons from sparse external masks, the project is increasingly oriented toward:
+The final output remains polygon-based, but the refinement logic is raster-based.
 
-- boundary-aware refinement,
-- multi-source comparison,
-- and evidence-based removal rules.
-
-This is especially important in informal-settlement mapping, where:
-- polygon interiors may contain vegetation,
-- built-up patterns may be fragmented,
-- and coarse or sparse settlement products may distort geometry if used too aggressively.
+The workflow is chunked so that Brazil can be processed as many local units rather than one monolithic raster task.
 
 ---
 
-## Current active questions
+## Current pipeline structure
 
-The Brasília pilot is currently focused on the following questions:
+The active workflow is implemented under:
 
-1. Can **GHSL** provide useful built-up evidence for polygon refinement despite resolution and sparsity limitations?
-2. Can **GHSL temporal change** help interpret settlement evolution or diagnose apparent false negatives?
-3. Can **MapBiomas alone** remove vegetation and provide useful anthropic support without requiring immediate NDVI computation?
-4. If a single source is insufficient, what is the best multi-source combination for refinement?
+`src/final_pipeline_scale_up/`
 
----
+and is organized into four stages:
 
-## Confirmed decisions
+1. `1_prepare_inputs.py`
+2. `2_build_refined_mask.py`
+3. `3_polygonize_and_qc.py`
+4. `4_merge_brazil_polygons.py`
 
-### Confirmed with managers
-- **Pilot AOI:** Brasília / Distrito Federal
-- **Scaling strategy:** processing organized **by state**
-- **Patch size for downstream DL workflows:** `512 × 512`
+These stages respectively handle:
 
-### Previously confirmed GHSL direction
-- GHSL was initially selected as the main refinement evidence source for the pilot baseline.
-- This is now being treated as a **baseline experiment**, not necessarily the final exclusive refinement source.
-
-### Current experimental decision
-- This week’s pilot will test **MapBiomas as a standalone refinement evidence source**
-- NDVI-based vegetation detection is deferred for now because of the added complexity of cloud-sensitive Sentinel-2 preprocessing
+- data preparation and alignment,
+- raster refinement,
+- polygonization and QC,
+- national polygon merging.
 
 ---
 
-## Near-term plan
+## Key methodological decisions
 
-### This week — Brasília pilot with MapBiomas
-The immediate objective is to test whether MapBiomas can be used on its own to:
+Several important decisions define the current project state:
 
-- identify vegetation inside or around favela polygons,
-- provide built-up / anthropic support,
-- and support conservative polygon refinement without additional sources.
+### 1. Chunk-based national processing
+Brazil is processed as many local chunks rather than one full-country raster pass.
 
-Planned outputs include:
-- a Brasília-clipped MapBiomas raster,
-- a vegetation mask,
-- an anthropic / built-up support mask,
-- one or more refined pilot masks,
-- visual QC examples,
-- and a conclusion on whether MapBiomas alone is sufficient.
+### 2. Multi-source refinement
+The pipeline combines semantic and support layers rather than relying on a single raster source.
 
-### Parallel documentation work
-The documentation is being expanded to support:
-- methods pages,
-- experiment pages,
-- dated status notes,
-- ADRs,
-- and thesis-writing drafts.
+### 3. Polygon-based final outputs
+Even though the logic is raster-based, the final product remains polygon-oriented.
 
-This is needed because the project now includes several parallel experiments and evolving methodological choices.
+### 4. WSF excluded from the core rule
+WSF was considered, but it is not part of the current active rule because of temporal-consistency concerns.
+
+### 5. Archived pilots remain documented but are no longer active
+Older Brasília, Manaus, and MapBiomas-only experiments remain part of the project history but are no longer the main workflow.
 
 ---
 
-## Next pipeline stages
+## Current project status
 
-After the current Brasília refinement pilot, the broader pipeline remains:
+The Brazil-scale active pipeline has already been executed successfully across:
 
-1. finalize a defensible refinement strategy,
-2. establish the tiling system,
-3. acquire and preprocess Sentinel-2 imagery,
-4. preprocess Sentinel-1 imagery,
-5. align labels and imagery,
-6. export machine-learning-ready patches,
-7. run QC and sensitivity analysis,
-8. scale the workflow to all Brazil.
+- **407 active chunks**
 
----
+This means the project now has:
 
-## Risks and uncertainties
+- chunk-level prepared inputs,
+- chunk-level refined raster masks,
+- chunk-level raw polygons,
+- chunk-level dissolved polygons,
+- chunk-level QC summaries,
+- and national merged polygon outputs.
 
-- Some auxiliary raster products may be too coarse or too sparse to support reliable boundary refinement on their own.
-- Different data sources may disagree in mixed urban or peri-urban areas.
-- Vegetation removal is easier to motivate conceptually than to implement conservatively without damaging true settlement boundaries.
-- Thresholds, class groupings, and postprocessing choices will require pilot validation.
-- The final master grid, target CRS, and raster alignment policy will need to remain consistent with later Sentinel-based export.
+The pipeline is therefore operational at national scale.
 
 ---
 
-## Evidence and references
+## What has been achieved so far
 
-Primary evidence currently includes:
-- `data/interim/polygons_clean/favelas_clean_summary.csv`
-- `data/interim/polygons_clean/favelas_brasilia.gpkg`
-- `data/interim/aoi/brasilia_boundary.gpkg`
-- `data/raw/ghsl/brasilia.tif`
-- `data/interim/ghsl_clips/ghsl_brasilia_clip.tif`
+The project has already achieved:
 
-Supporting QC and scripts include:
-- `src/qc/qc_aoi_coverage.py`
-- `reports/qc/stats/aoi_coverage_brasilia.csv`
+- early pilot development and lessons from Brasília,
+- semantic refinement development through MapBiomas,
+- multi-source design maturation through Manaus and multi-city experiments,
+- national raw-data organization,
+- full implementation of the scaled-up operational pipeline,
+- national execution of all main stages,
+- repository cleanup and archival separation of old experiments.
 
-Additional experiment-specific evidence should be documented in:
-- `docs/experiments/`
-- `docs/status/`
-- and the corresponding method pages as they are added.
+---
+
+## What still remains
+
+Before moving fully into the satellite-image phase, the following tasks still remain:
+
+- representative visual validation in QGIS,
+- national QC aggregation,
+- chunk-boundary consistency review,
+- optional industrial-area veto,
+- final transition to satellite-image processing and dataset building.
+
+---
+
+## Intended audience
+
+This project brief is intended for:
+
+- project supervisors,
+- collaborators,
+- future contributors,
+- and anyone needing a concise explanation of the project’s purpose and current status.
+
+---
+
+## One-paragraph summary
+
+The project has evolved from early Brasília GHSL-based pilots into a working Brazil-scale chunked favela-refinement pipeline. The active workflow uses MapBiomas 10 m, GHSL 2022, and WorldCover 2021 to produce refined raster and polygon labels across Brazil. The current national run has already completed successfully over 407 active chunks, and the project is now transitioning from label-refinement engineering into validation, consolidation, and preparation for satellite-image dataset construction.

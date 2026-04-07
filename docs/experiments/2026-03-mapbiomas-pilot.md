@@ -288,7 +288,7 @@ If MapBiomas proves sufficient alone in the pilot, it may become the first opera
 
 See also:
 
-- [MapBiomas Refinement](../methods/mapbiomas_refinement.md)
+- [MapBiomas Refinement](../archive/legacy_methods/mapbiomas_refinement_legacy.md)
 - [Label Refinement](../methods/label_refinement.md)
 - [Data Sources](../methods/data_sources.md)
 - [Multi-source Fusion](../methods/multi_source_fusion.md)
