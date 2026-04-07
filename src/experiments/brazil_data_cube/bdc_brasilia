@@ -1,0 +1,226 @@
+"""
+Download one Brazil Data Cube S2-16D-2 composite for Brasília / Distrito Federal in 2021.
+
+What this script does
+---------------------
+1. Connects to the official Brazil Data Cube STAC API.
+2. Searches the S2-16D-2 collection for a Brasília bbox in a chosen 2021 date window.
+3. Prints all matching items so you can see what exists.
+4. Automatically picks one item (or you can choose by index).
+5. Downloads only a small set of useful assets:
+   - B02, B03, B04 for RGB
+   - B08 for NIR
+   - B11, B12 for SWIR
+   - SCL for quality / scene classes
+6. Saves everything into a local folder.
+
+Why this is better than the previous version
+--------------------------------------------
+- only one date window item
+- only useful bands
+- much faster
+- enough for checking whether BDC is suitable for your 2021 polygon publication
+
+Install
+-------
+pip install pystac-client requests
+
+Run
+---
+python src/experiments/brazil_data_cube/bdc_brasilia_single_date.py
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+from typing import List
+
+import requests
+from pystac_client import Client
+
+
+# =========================
+# Configuration
+# =========================
+
+# Official BDC STAC endpoints seen in documentation/examples.
+# If one fails, the script tries the second.
+STAC_URL_CANDIDATES = [
+    "https://data.inpe.br/bdc/stac/v1/",
+    "https://brazildatacube.dpi.inpe.br/stac/",
+]
+
+COLLECTION = "S2-16D-2"
+
+# Approximate bbox for Distrito Federal / Brasília:
+# [min_lon, min_lat, max_lon, max_lat]
+BRASILIA_BBOX = [-48.30, -16.10, -47.20, -15.30]
+
+# Prefer a dry-season window first for cleaner urban visibility.
+DATE_RANGE = "2021-06-01/2021-09-30"
+
+# Good minimal set for visual QC + some spectral inspection
+ASSETS_TO_DOWNLOAD = ["B02", "B03", "B04", "B08", "B11", "B12", "SCL"]
+
+# If True, automatically choose the middle item after sorting by date.
+# If False, set MANUAL_ITEM_INDEX below.
+AUTO_PICK_MIDDLE_ITEM = True
+
+# Zero-based index after sorting the matched items by date.
+# Used only if AUTO_PICK_MIDDLE_ITEM = False
+MANUAL_ITEM_INDEX = 0
+
+OUTPUT_DIR = Path("data/raw/bdc_brasilia_single_date_2021")
+TIMEOUT_SECONDS = 180
+CHUNK_SIZE = 1024 * 1024  # 1 MB
+
+
+# =========================
+# Helpers
+# =========================
+
+def safe_name(text: str) -> str:
+    """Return a filesystem-safe version of a string."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", text)
+
+
+def ensure_dir(path: Path) -> None:
+    """Create a directory if it does not exist."""
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def stream_download(url: str, dst_path: Path) -> None:
+    """Download a file by streaming it to disk."""
+    if dst_path.exists():
+        print(f"[SKIP] Already exists: {dst_path}")
+        return
+
+    tmp_path = dst_path.with_suffix(dst_path.suffix + ".part")
+
+    with requests.get(url, stream=True, timeout=TIMEOUT_SECONDS) as response:
+        response.raise_for_status()
+        with open(tmp_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+                if chunk:
+                    f.write(chunk)
+
+    tmp_path.replace(dst_path)
+    print(f"[OK] Downloaded: {dst_path}")
+
+
+def open_stac_catalog() -> Client:
+    """Try the known BDC STAC URLs until one works."""
+    last_error = None
+    for url in STAC_URL_CANDIDATES:
+        try:
+            print(f"[STEP] Trying STAC catalog: {url}")
+            catalog = Client.open(url)
+            # Touch a cheap property to force validation
+            _ = catalog.get_collections()
+            print(f"[OK] Connected to: {url}")
+            return catalog
+        except Exception as exc:
+            print(f"[WARN] Failed to open {url}: {exc}")
+            last_error = exc
+
+    raise RuntimeError(f"Could not connect to any BDC STAC endpoint. Last error: {last_error}")
+
+
+def search_items(catalog: Client) -> List:
+    """Search BDC items for the configured bbox, collection, and date range."""
+    print("[STEP] Searching items...")
+    search = catalog.search(
+        collections=[COLLECTION],
+        bbox=BRASILIA_BBOX,
+        datetime=DATE_RANGE,
+    )
+    items = list(search.items())
+    print(f"[INFO] Found {len(items)} item(s).")
+    return items
+
+
+def pick_item(items: List):
+    """Pick one item from the list after sorting by datetime."""
+    items_sorted = sorted(items, key=lambda x: x.datetime or "")
+
+    print("\n[INFO] Matching items:")
+    for i, item in enumerate(items_sorted):
+        print(f"  [{i}] {item.id} | datetime={item.datetime}")
+
+    if not items_sorted:
+        raise RuntimeError("No matching items found.")
+
+    if AUTO_PICK_MIDDLE_ITEM:
+        idx = len(items_sorted) // 2
+    else:
+        idx = MANUAL_ITEM_INDEX
+
+    if idx < 0 or idx >= len(items_sorted):
+        raise IndexError(f"Chosen item index {idx} is out of range for {len(items_sorted)} items.")
+
+    chosen = items_sorted[idx]
+    print("\n[STEP] Chosen item:")
+    print(f"  index    : {idx}")
+    print(f"  id       : {chosen.id}")
+    print(f"  datetime : {chosen.datetime}")
+    return chosen
+
+
+def save_item_metadata(item, out_dir: Path) -> None:
+    """Save STAC item JSON to disk."""
+    ensure_dir(out_dir)
+    with open(out_dir / "item.json", "w", encoding="utf-8") as f:
+        json.dump(item.to_dict(), f, indent=2)
+    print(f"[OK] Saved metadata: {out_dir / 'item.json'}")
+
+
+def download_assets(item, out_dir: Path) -> None:
+    """Download the selected assets for a single STAC item."""
+    ensure_dir(out_dir)
+    available_assets = sorted(item.assets.keys())
+    print(f"[INFO] Available assets: {available_assets}")
+
+    missing = [a for a in ASSETS_TO_DOWNLOAD if a not in item.assets]
+    if missing:
+        print(f"[WARN] Missing requested assets: {missing}")
+
+    for asset_name in ASSETS_TO_DOWNLOAD:
+        if asset_name not in item.assets:
+            continue
+
+        href = item.assets[asset_name].href
+
+        # Most are GeoTIFFs; keep extension simple and stable.
+        dst_path = out_dir / f"{asset_name}.tif"
+        print(f"[DOWNLOAD] {asset_name}")
+        stream_download(href, dst_path)
+
+
+def main() -> None:
+    ensure_dir(OUTPUT_DIR)
+
+    catalog = open_stac_catalog()
+    items = search_items(catalog)
+
+    if not items:
+        raise RuntimeError(
+            "No items found for the given Brasília bbox and date range. "
+            "Try widening DATE_RANGE or BRASILIA_BBOX."
+        )
+
+    chosen_item = pick_item(items)
+
+    item_dir = OUTPUT_DIR / safe_name(chosen_item.id)
+    ensure_dir(item_dir)
+
+    save_item_metadata(chosen_item, item_dir)
+    download_assets(chosen_item, item_dir)
+
+    print("\n[DONE] Finished downloading one Brasília BDC composite.")
+    print(f"[INFO] Files saved under: {item_dir}")
+
+
+if __name__ == "__main__":
+    main()
