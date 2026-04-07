@@ -1,0 +1,19 @@
+year: 2021
+
+paths:
+  favelas: data/raw/favelas_shp/favelas_2021.gpkg
+  mapbiomas: data/raw/mapbiomas/mapbiomas_10m_2021.tif
+  worldcover_root: data/raw/worldcover_2021/brazil_tiles
+  dynamic_world_root: data/raw/dynamic_world_2021/brazil_tiles
+  output_root: data/processed/final_pipeline_2021
+
+chunking:
+  chunk_size_km: 50
+
+thresholds:
+  dw_built_high: 0.60
+  dw_built_mean_keep: 0.30
+  dw_built_p90_keep: 0.45
+  dw_built_low_remove: 0.15
+  min_object_pixels: 9
+  max_hole_pixels: 9

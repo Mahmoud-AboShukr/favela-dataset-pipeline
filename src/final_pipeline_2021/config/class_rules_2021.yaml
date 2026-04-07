@@ -1,0 +1,32 @@
+mapbiomas:
+  keep_core:
+    - 24
+  uncertain:
+    - 25
+  vegetation_remove:
+    - 3
+    - 4
+    - 5
+    - 6
+    - 11
+    - 12
+    - 49
+    - 50
+  water_remove:
+    - 33
+
+worldcover:
+  built_keep:
+    - 50
+  vegetation_water_remove:
+    - 10
+    - 20
+    - 30
+    - 80
+    - 90
+    - 95
+
+dynamic_world:
+  use_built_mean: true
+  use_built_p90: true
+  use_label_mode: false
