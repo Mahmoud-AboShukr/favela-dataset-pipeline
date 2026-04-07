@@ -33,3 +33,11 @@ cache/
 project_after_tidy.txt
 src_after_tidy.txt
 data_after_tidy.txt
+data/
+*.tif
+*.gpkg
+*.geojson
+*.png
+*.jpg
+output.txt
+stage2_output.txt
