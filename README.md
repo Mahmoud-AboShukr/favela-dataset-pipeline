@@ -1,123 +1,62 @@
-# Favela Dataset Pipeline (Brazil)
-**Polygons → GHSL-refined Masks → Sentinel-1/2 Dataset**
+# Brazil favela mapping — IRD project overview
 
-This repository builds a Deep Learning–ready dataset for favela detection in Brazil by:
+A multimodal remote-sensing research project developed during my master's research at **IRD, UMR ESPACE-DEV**. The objective was to map favelas in Brazil using aligned **Sentinel-1 radar**, **Sentinel-2 optical imagery**, and refined settlement labels.
 
-- ingesting the official Brazilian government favela polygons,
-- refining them using GHSL (Global Human Settlement Layer) built-up evidence to remove vegetation / non-built-up areas,
-- generating binary masks (**0 = non-favela**, **1 = favela**),
-- aligning masks with Sentinel-2 (optical) and Sentinel-1 (SAR) imagery,
-- exporting tile-based stacks and training patches for semantic segmentation.
+This page is the entry point to the four processing repositories. This repository itself contains the early polygon-cleaning and GHSL label-refinement work.
 
-We start with a **Brasília pilot**, then scale to **all Brazil** (organized **by state**) with **512×512** patches.
+## Research outcome and availability
 
----
+The wider research produced a benchmark covering **26 Brazilian cities** with **12,699 aligned Sentinel-1/2 patches** on common **10 m grids**, and segmentation experiments with **CROMA, SMARTIES, and TerraMind**. IBGE settlement boundaries were refined using built-up and land-cover evidence, including GHSL, MapBiomas, ESA WorldCover, and WSF.
 
-## Repository structure
+The final TerraMind-based segmentation experiment used a residual-ASPP decoder and achieved **IoU 0.8151 / Dice 0.8981 on the same-city test protocol**. These are thesis results, not an unseen-city generalisation score. The public repositories below do not yet constitute a complete release of the final TerraMind experiment.
 
-```text
-favela-dataset-pipeline/
-├─ README.md
-├─ pyproject.toml                 # or requirements.txt
-├─ .gitignore
-├─ config/
-│  ├─ config.yaml                 # pipeline configuration
-│  └─ secrets.env                 # optional (DO NOT commit)
-├─ data/
-│  ├─ raw/
-│  │  ├─ favelas_shp/             # original shapefile bundle (shp/shx/dbf/prj/...)
-│  │  ├─ ghsl/                    # GHSL rasters (tiles)
-│  │  └─ sentinel/
-│  │     ├─ s2/                   # raw S2 exports / SAFE / COGs
-│  │     └─ s1/                   # raw S1 exports / SAFE / COGs
-│  ├─ interim/
-│  │  ├─ polygons_clean/          # cleaned polygons + Brasília subset
-│  │  ├─ tiles/                   # tiling indexes (later)
-│  │  ├─ ghsl_clips/              # clipped GHSL rasters (AOI/state)
-│  │  └─ masks/                   # polygon masks + refined masks
-│  └─ processed/
-│     ├─ brasilia_pilot/          # pilot dataset outputs
-│     └─ brazil_full/             # full-country outputs (later)
-├─ notebooks/                     # exploration & QC only
-├─ src/                           # pipeline code
-├─ scripts/                       # helper run scripts
-└─ reports/                       # QC overlays + notes
+**Dataset release is pending.** Satellite data, final benchmark files, and trained checkpoints are not bundled here. No publication acceptance is implied.
+
+[Read the master's thesis](https://drive.google.com/file/d/1xght2L_ex5_-7mI3n93vxPnZ8XtSCrH3/view?usp=sharing) for the experimental context and evaluation protocols.
+
+## Repository map
+
+| Stage | Repository | Contents |
+| --- | --- | --- |
+| 1. Optical acquisition and compositing | [cloud_removing_pipeline](https://github.com/Mahmoud-AboShukr/cloud_removing_pipeline) | Sentinel-2 scene selection, cloud/shadow masking, compositing, and coverage diagnostics |
+| 2. Radar acquisition | [sentinel1_download_pipeline](https://github.com/Mahmoud-AboShukr/sentinel1_download_pipeline) | Sentinel-1 acquisition workflow and supporting documentation |
+| 3. Reference-label preparation | [favela-dataset-pipeline](https://github.com/Mahmoud-AboShukr/favela-dataset-pipeline) — this repository | Polygon cleaning, Brasília pilot, GHSL clipping, and label-refinement scripts |
+| 4. Harmonisation and experiments | [brazil-favela-s1-s2-postprocessing](https://github.com/Mahmoud-AboShukr/brazil-favela-s1-s2-postprocessing) | Common-grid alignment, label rasterisation, QC, patch metadata, geographic splits, and experimental model code |
+
+```mermaid
+flowchart TD
+  S2["Sentinel-2 scenes"] --> O["Cloud masking and optical composites"]
+  S1["Sentinel-1 acquisitions"] --> R["Radar preparation"]
+  P["IBGE polygons + built-up evidence"] --> L["Refined reference labels"]
+  O --> A["Common 10 m grid + alignment QC"]
+  R --> A
+  L --> A
+  A --> D["Patches, metadata and geographic splits"]
+  D --> M["Segmentation training and evaluation"]
 ```
 
----
+## What is implemented here
 
-## Environment setup
+- Polygon cleaning: [subtask1_clean_polygons.py](src/labels/subtask1_clean_polygons.py).
+- Brasília extraction: [subtask1_extract_brasilia.py](src/labels/subtask1_extract_brasilia.py).
+- GHSL inspection and clipping: [src/ghsl](src/ghsl).
+- Pilot label refinement: [subtask3_refine_brasilia_with_ghsl.py](src/labels/subtask3_refine_brasilia_with_ghsl.py).
+- Processing decisions and methods: [docs](docs).
 
-### Option A — `requirements.txt`
-Create a `requirements.txt` (example):
+Some scaffold files, including the generic CLI, patch-building modules, and test files, are empty placeholders. Their presence does not indicate an implemented or tested end-to-end pipeline. Older notes describing 512 × 512 pilot patches concern that development stage, not necessarily the final benchmark configuration.
 
-- geopandas  
-- rasterio  
-- shapely  
-- numpy  
-- pandas  
-- pyproj  
-- rtree  
-- matplotlib  
-- scikit-image  
-
-Then:
+## Start with the label-preparation pilot
 
 ```bash
+git clone https://github.com/Mahmoud-AboShukr/favela-dataset-pipeline.git
+cd favela-dataset-pipeline
 python -m venv .venv
-# Windows:
-# .venv\Scripts\activate
-# Linux/macOS:
-# source .venv/bin/activate
-pip install -r requirements.txt
+# Linux/macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python src/labels/subtask1_clean_polygons.py "/path/to/favelas.shp"
 ```
 
----
+Supply the original shapefile bundle and GHSL rasters locally. Review [config/config.yaml](config/config.yaml) and each script's path settings before running the Brasília and refinement steps; these are research scripts, not a single portable CLI. Expected pilot products include cleaned GeoPackages, GHSL clips, and binary masks.
 
-## Pipeline overview (current)
-
-### Subtask 1 — Clean polygons ✅
-- Input: government shapefile
-- Output:
-  - `data/interim/polygons_clean/favelas_clean.gpkg`
-  - `data/interim/polygons_clean/favelas_clean_summary.csv`
-
-Run:
-```powershell
-python .\src\labels\subtask1_clean_polygons.py "C:\full\path\to\data\raw\favelas_shp\favelas.shp"
-```
-
-### Brasília subset ✅
-Output:
-- `data/interim/polygons_clean/favelas_brasilia.gpkg`
-
-Run:
-```powershell
-python .\src\labels\subtask1_extract_brasilia.py
-```
-
-### Subtask 2 — GHSL download + clip ✅
-- GHSL chosen: **GHS-BUILT, Epoch 2018, 10 m, WGS84**
-- Raw tile(s): `data/raw/ghsl/`
-- Clip: `data/interim/ghsl_clips/ghsl_brasilia_clip.tif`
-
-Inspect:
-```powershell
-python .\src\ghsl\inspect_ghsl.py
-```
-
-Clip:
-```powershell
-python .\src\ghsl\clip_ghsl_brasilia.py
-```
-
-### Subtask 3 — Refine labels using GHSL (next)
-Expected outputs:
-- `data/interim/masks/brasilia_polygon_mask.tif`
-- `data/interim/masks/brasilia_refined_mask.tif`
-
----
-
-## Notes
-- Keep large data out of git: ignore `data/raw`, `data/interim`, `data/processed`.
-- Use QGIS for QC overlays and store evidence under `reports/qc/overlays/`.
+Keep raw imagery and intermediate rasters outside Git. Inspect masks over imagery in QGIS and retain the processing settings and QC evidence with each local dataset version.
